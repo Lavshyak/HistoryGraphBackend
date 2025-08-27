@@ -1,8 +1,29 @@
 ﻿services:
-  arangodb:
-    image: arangodb:3.11.0
+  neo4j:
+    image: neo4j:2025.07.1
+    container_name: historygraph-neo4j
     ports:
-      - "8529:8529"
+      - "7474:7474"  # HTTP
+      - "7687:7687"  # Bolt
     environment:
-      - ARANGO_NO_AUTH=1
-      #- ARANGO_ROOT_PASSWORD=somepassword
+      - NEO4J_AUTH=neo4j/w4gfe57GDF325hfw
+      - NEO4J_PLUGINS=["apoc"]
+      - NEO4J_dbms_security_procedures_unrestricted=apoc.*
+      - NEO4J_dbms_security_procedures_allowlist=apoc.*
+#    volumes:
+#      - neo4j_data:/data
+#      - neo4j_logs:/logs
+#      - neo4j_import:/var/lib/neo4j/import
+#      - neo4j_plugins:/plugins
+#    networks:
+#      - historygraph
+
+#volumes:
+#  neo4j_data:
+#  neo4j_logs:
+#  neo4j_import:
+#  neo4j_plugins:
+
+#networks:
+#  historygraph:
+#    driver: bridge

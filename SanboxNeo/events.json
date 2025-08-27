@@ -1,0 +1,51 @@
+{
+  "Events": [
+    {
+      "TemporarySlug": "e1",
+      "TimeFrom": "2025-08-27T10:00:00",
+      "TimeTo": "2025-08-27T11:00:00",
+      "Keywords": [
+        "short",
+        "test"
+      ],
+      "Title": "Test Event 1",
+      "Description": "A brief description 1"
+    },
+    {
+      "TemporarySlug": "e2",
+      "TimeFrom": "2025-08-27T11:30:00",
+      "TimeTo": "2025-08-27T12:30:00",
+      "Keywords": [
+        "short",
+        "test"
+      ],
+      "Title": "Test Event 2",
+      "Description": "A brief description 2"
+    },
+    {
+      "TemporarySlug": "e3",
+      "TimeFrom": "2025-08-27T13:00:00",
+      "TimeTo": "2025-08-27T14:00:00",
+      "Keywords": [
+        "short",
+        "test"
+      ],
+      "Title": "Test Event 3",
+      "Description": "A brief description 3"
+    }
+  ],
+  "Relations": {
+    "Continues": [
+      {
+        "FromTemporarySlug": "e1",
+        "ToTemporarySlug": "e2"
+      }
+    ],
+    "Influenceds": [
+      {
+        "FromTemporarySlug": "e3",
+        "ToTemporarySlug": "e1"
+      }
+    ]
+  }
+}

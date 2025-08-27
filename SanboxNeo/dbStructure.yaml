@@ -1,0 +1,23 @@
+﻿#не совсем актуально
+Nodes:
+  - Event:
+      props:
+        id: string guid unique
+        time_from: datetime utc+0
+        time_to: datetime utc+0
+        keywords: string array
+        title: string
+        description: string
+  - Theme:
+      props:
+        id: long
+        keywords: string array
+        title: string
+        description: string
+Relationships:
+  - Event-Event:
+      - Continue:
+      - Influenced:
+      - References:
+  - Event-Theme:
+      - Related:

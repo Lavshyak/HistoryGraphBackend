@@ -1,0 +1,7 @@
+﻿Arango DB:
+Community Edition - Non-commercial and non-production applications
+Other - cheap
+
+neo4j: 
+community - Open source under GPLv3
+Enterprise Edition - платно, но говорят норм. Unlimited horizontal scaling with replication and sharding
