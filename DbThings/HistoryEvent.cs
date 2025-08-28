@@ -1,4 +1,4 @@
-﻿namespace SanboxNeo.WorldDb;
+﻿namespace DbThings;
 
 public class HistoryEvent
 {
@@ -124,7 +124,7 @@ public class RelationPureRelatesWithTemporarySlugs : IRelationWithTemporarySlugs
 
 public class RelationPureRelatesTheme : IRelationWithIds
 {
-    public const string Label = "RELATES";
+    public const string Label = "THEME_RELATES";
     public const string FromLabel = HistoryTheme.Label;
     public const string ToLabel = HistoryTheme.Label;
     public required Guid Id { get; set; }

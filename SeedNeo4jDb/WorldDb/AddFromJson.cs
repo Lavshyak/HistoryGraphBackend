@@ -1,6 +1,7 @@
 ﻿using System.Text.Json;
+using DbThings;
 
-namespace SanboxNeo.WorldDb;
+namespace SeedNeo4jDb.WorldDb;
 
 public record EventsJsonRoot(
     HistoryEventWithTemporarySlug[] Events,
@@ -14,11 +15,13 @@ public record Relations(
 
 public class AddFromJson
 {
-    private EventsRepository _eventsRepository;
+    private readonly EventsRepository _eventsRepository;
+    private readonly DataBase _dataBase;
 
-    public AddFromJson(EventsRepository eventsRepository)
+    public AddFromJson(EventsRepository eventsRepository, DataBase dataBase)
     {
         _eventsRepository = eventsRepository;
+        _dataBase = dataBase;
     }
 
     public async Task ReadAndAdd()
@@ -27,8 +30,8 @@ public class AddFromJson
         var text = System.IO.File.ReadAllText(jsonFile);
         var root = JsonSerializer.Deserialize<EventsJsonRoot>(text);
 
-        await _eventsRepository.AddEvents(root.Events);
-
+        await _dataBase.TryApplyMigration("initial_events", "",
+            async transaction => { await _eventsRepository.AddEvents(root.Events, transaction); });
 
         var eventsSlugIdDict = root.Events.ToDictionary(e => e.TemporarySlug, e => e.Id);
 
@@ -48,6 +51,7 @@ public class AddFromJson
             }).ToList(),
         };
 
-        await _eventsRepository.AddRelations(relationsToAdd);
+        await _dataBase.TryApplyMigration("initial_relations", "",
+            async transaction => { await _eventsRepository.AddRelations(relationsToAdd, transaction); });
     }
 }

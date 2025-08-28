@@ -1,7 +1,6 @@
 ﻿using Neo4j.Driver;
-using Neo4j.Driver.Preview.Mapping;
 
-namespace SanboxNeo.WorldDb;
+namespace DbThings;
 
 public class EventsRepository
 {
@@ -12,24 +11,18 @@ public class EventsRepository
         _session = session;
     }
 
-    public async Task Init()
+    public async Task GetAll()
     {
-        // Уникальный индекс по UUID (id)
-        await _session.RunAsync("""
-                                CREATE CONSTRAINT history_event_id_unique IF NOT EXISTS
-                                FOR (e:HISTORY_EVENT)
-                                REQUIRE e.id IS UNIQUE;
-                                """);
+        var result = await _session.RunAsync(@"
+            MATCH (n)
+            OPTIONAL MATCH (n)-[r]-(m)
+            RETURN n, r, m;
+        ");
 
-        // Индекс по UUID (id)
-        await _session.RunAsync($"CREATE INDEX rel_range_index_name FOR ()-[r:{RelationPureContinue.Label}]-() ON (r.id)");
-        await _session.RunAsync($"CREATE INDEX rel_range_index_name FOR ()-[r:{RelationPureInfluenced.Label}]-() ON (r.id)");
-        await _session.RunAsync($"CREATE INDEX rel_range_index_name FOR ()-[r:{RelationPureReferences.Label}]-() ON (r.id)");
-        await _session.RunAsync($"CREATE INDEX rel_range_index_name FOR ()-[r:{RelationPureRelates.Label}]-() ON (r.id)");
-        await _session.RunAsync($"CREATE INDEX rel_range_index_name FOR ()-[r:{RelationPureRelatesTheme.Label}]-() ON (r.id)");
+        var list = await result.ToListAsync();
     }
-
-    public async Task<bool> AddEvents(HistoryEvent[] historyEvents)
+    
+    public async Task<bool> AddEvents(HistoryEvent[] historyEvents, IAsyncQueryRunner queryRunner)
     {
         foreach (var historyEvent in historyEvents)
         {
@@ -49,7 +42,7 @@ public class EventsRepository
             Description = e.Description
         }).ToArray();
 
-        var result = await _session.RunAsync($@"
+        var result = await queryRunner.RunAsync($@"
                 UNWIND $Events AS event
                 MERGE (e:HISTORY_EVENT {{id: event.IdStr}})
                 ON CREATE SET
@@ -66,45 +59,15 @@ public class EventsRepository
             }
         );
 
-        var peek = await result.PeekAsync(); // работает нормально
-        var createdCount = (await result.SingleAsync()); // 
+        var peek = await result.PeekAsync();
+        var createdCount = (await result.SingleAsync());
 
         return true;
     }
-
-    public async Task<bool> AddEvent(HistoryEvent historyEvent)
+    
+    public async Task<bool> AddEvents(HistoryEvent[] historyEvents)
     {
-        Guid id;
-        if (historyEvent.Id == Guid.Empty)
-        {
-            id = Guid.NewGuid();
-        }
-        else
-        {
-            id = historyEvent.Id;
-        }
-
-        var result = await _session.RunAsync($@"""
-                MERGE (e:HISTORY_EVENT {{e.id: $IdStr}})
-                ON CREATE SET
-                    e.time_from = datetime($TimeFrom),
-                    e.time_to = datetime($TimeTo),
-                    e.keywords = $Keywords,
-                    e.title = $Title,
-                    e.description = $Description
-            """,
-            new
-            {
-                Id = id,
-                TimeFrom = historyEvent.TimeFrom,
-                TimeTo = historyEvent.TimeTo,
-                Keywords = historyEvent.Keywords,
-                Title = historyEvent.Title,
-                Description = historyEvent.Description,
-            });
-
-        historyEvent.Id = id;
-        return true;
+        return await AddEvents(historyEvents, _session);
     }
 
     public class RelationsToAdd
@@ -113,10 +76,15 @@ public class EventsRepository
         public List<RelationPureInfluenced> Influenceds { get; set; } = [];
         public List<RelationPureReferences> Referencess { get; set; } = [];
         public List<RelationPureRelates> Relatess { get; set; } = [];
+
         public List<RelationPureRelatesTheme> ThemeRelatess { get; set; } = [];
     }
 
     public async Task<bool> AddRelations(RelationsToAdd relationsToAdd)
+    {
+        return await AddRelations(relationsToAdd, _session);
+    }
+    public async Task<bool> AddRelations(RelationsToAdd relationsToAdd, IAsyncQueryRunner queryRunner)
     {
         async Task<IResultCursor?> HandleRelations(
             IReadOnlyList<IRelationWithIds> relations,
@@ -148,7 +116,7 @@ public class EventsRepository
                 MERGE (from)-[r:{relationLabel} {{id: rel.Id}}]->(to)
             ";
 
-            var result = await _session.RunAsync(cypher, new { Rels = records });
+            var result = await queryRunner.RunAsync(cypher, new { Rels = records });
             var resp = await result.ToListAsync();
             return result;
         }
@@ -182,7 +150,6 @@ public class EventsRepository
             RelationPureRelatesTheme.Label,
             RelationPureRelatesTheme.FromLabel,
             RelationPureRelatesTheme.ToLabel);
-
         return true;
     }
 }

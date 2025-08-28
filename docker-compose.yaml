@@ -1,7 +1,6 @@
 ﻿services:
   neo4j:
     image: neo4j:2025.07.1
-    container_name: historygraph-neo4j
     ports:
       - "7474:7474"  # HTTP
       - "7687:7687"  # Bolt
@@ -18,12 +17,18 @@
 #    networks:
 #      - historygraph
 
-#volumes:
-#  neo4j_data:
-#  neo4j_logs:
-#  neo4j_import:
-#  neo4j_plugins:
-
-#networks:
-#  historygraph:
-#    driver: bridge
+  webapi:
+    image: historygraph-webapi:0.0.1
+    build:
+      dockerfile: ./WebApi/Dockerfile
+    ports:
+      - "6513:80"
+    environment:
+      - NEO4J__URI=bolt://neo4j:7687
+      - NEO4J__USER=neo4j
+      - NEO4J__PASSWORD=w4gfe57GDF325hfw
+      - ASPNETCORE_URLS=http://*:80
+    #depends_on:
+    #  - neo4j
+    #networks:
+    #  - historygraph
