@@ -31,28 +31,31 @@ public class AddFromJson
         var text = System.IO.File.ReadAllText(jsonFile);
         var root = JsonSerializer.Deserialize<EventsJsonRoot>(text);
 
-        await _migrationsService.TryApplyMigrationToHistory("initial_events", "",
-            async transaction => { await _eventsRepository.AddEvents(root.Events, transaction); });
-
-        var eventsSlugIdDict = root.Events.ToDictionary(e => e.TemporarySlug, e => e.Id);
-
-        var relationsToAdd = new EventsRepository.RelationsToAdd()
-        {
-            Continues = root.Relations.Continues.Select(c => new PureRelationContinue()
+        await _migrationsService.TryApplyMigrationToHistory("seed", "fake nodes and relationships",
+            async transaction =>
             {
-                Id = Guid.Empty,
-                FromId = eventsSlugIdDict[c.FromTemporarySlug],
-                ToId = eventsSlugIdDict[c.ToTemporarySlug]
-            }).ToList(),
-            Influenceds = root.Relations.Continues.Select(c => new PureRelationPureInfluenced()
-            {
-                Id = Guid.Empty,
-                FromId = eventsSlugIdDict[c.FromTemporarySlug],
-                ToId = eventsSlugIdDict[c.ToTemporarySlug]
-            }).ToList(),
-        };
+                await _eventsRepository.AddEvents(root.Events, transaction);
 
-        await _migrationsService.TryApplyMigrationToHistory("initial_relations", "",
-            async transaction => { await _eventsRepository.AddRelations(relationsToAdd, transaction); });
+                var eventsSlugIdDict = root.Events.ToDictionary(e => e.TemporarySlug, e => e.Id);
+
+                var relationsToAdd = new EventsRepository.RelationsToAdd()
+                {
+                    Continues = root.Relations.Continues.Select(c => new PureRelationContinue()
+                    {
+                        Id = Guid.Empty,
+                        FromId = eventsSlugIdDict[c.FromTemporarySlug],
+                        ToId = eventsSlugIdDict[c.ToTemporarySlug]
+                    }).ToList(),
+                    Influenceds = root.Relations.Influenceds.Select(c => new PureRelationPureInfluenced()
+                    {
+                        Id = Guid.Empty,
+                        FromId = eventsSlugIdDict[c.FromTemporarySlug],
+                        ToId = eventsSlugIdDict[c.ToTemporarySlug]
+                    }).ToList(),
+                };
+
+                await _eventsRepository.AddRelations(relationsToAdd, transaction);
+            }
+        );
     }
 }

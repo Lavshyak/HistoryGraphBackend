@@ -17,8 +17,9 @@ public class HistoryController : ControllerBase
     }
 
     [HttpGet]
-    public async Task GetAll()
+    public async Task<EventsRepository.EventsAndRelationships> GetAll()
     {
-        await _eventsRepository.GetAll();
+        var result = await _eventsRepository.GetAll();
+        return result;
     }
 }

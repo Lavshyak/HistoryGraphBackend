@@ -14,15 +14,44 @@ public class EventsRepository
     
     public async Task<IAsyncTransaction> BeginTransactionAsync() => await _session.BeginTransactionAsync();
 
-    public async Task GetAll()
+    public record EventsAndRelationships(PureHistoryEvent[] Events, PureRelationWithIdsAndLabel[] Relations);
+    public async Task<EventsAndRelationships> GetAll()
     {
         var result = await _session.RunAsync(@"
             MATCH (n)
-            OPTIONAL MATCH (n)-[r]-(m)
-            RETURN n, r, m;
+            OPTIONAL MATCH ()-[r]-(n)
+            RETURN COLLECT(DISTINCT n) AS nodes, COLLECT(DISTINCT r) AS rels
         ");
 
         var list = await result.ToListAsync();
+        var record = list[0];
+        var nodesList = record["nodes"].As<List<INode>>();
+        var relationsList = record["rels"].As<List<IRelationship>>();
+
+        var nodesUnique = nodesList.DistinctBy(n => n.ElementId).ToArray();
+        var relationsUnique = relationsList.DistinctBy(r => r.ElementId).ToArray();
+        
+        var nodeElementIdToIdDict = nodesUnique.ToDictionary(n => n.ElementId, n => Guid.Parse(n.Properties["id"].As<string>()));
+
+        var historyEvents = nodesUnique.Select(n => new PureHistoryEvent()
+        {
+            Id = Guid.Parse(n.Properties["id"].As<string>()),
+            Title = n.Properties["title"].As<string>(),
+            Description = n.Properties["description"].As<string>(),
+            Keywords = n.Properties["keywords"].As<List<string>>().ToArray(),
+            TimeFrom = n.Properties["time_from"].As<ZonedDateTime>().UtcDateTime,
+            TimeTo = n.Properties["time_to"].As<ZonedDateTime>().UtcDateTime
+        }).ToArray();
+
+        var relationships = relationsUnique.Select(r => new PureRelationWithIdsAndLabel()
+        {
+            Id = Guid.Parse(r.Properties["id"].As<string>()),
+            FromId = nodeElementIdToIdDict[r.StartNodeElementId.As<string>()],
+            ToId = nodeElementIdToIdDict[r.EndNodeElementId.As<string>()],
+            Label = r.Type,
+        }).ToArray();
+        
+        return new EventsAndRelationships(historyEvents, relationships);
     }
     
     public async Task<bool> AddEvents(PureHistoryEvent[] historyEvents, IAsyncQueryRunner queryRunner)
