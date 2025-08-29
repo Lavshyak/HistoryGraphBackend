@@ -1,24 +1,37 @@
 using DbThings;
 using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.OpenApi.Models;
-using Neo4j.Driver;
 
-Console.WriteLine("started");
+Console.WriteLine("Program.cs start");
 
 var builder = WebApplication.CreateBuilder(args);
 
-// Add services to the container.
+#region AddServices
+
 {
     var config = builder.Configuration;
-    var driver = GraphDatabase.Driver(config["NEO4J:URI"] ?? throw new InvalidOperationException("NEO4J__URI"),
-        AuthTokens.Basic(config["NEO4J:USER"] ?? throw new InvalidOperationException("NEO4J__USER"),
-            config["NEO4J:PASSWORD"] ?? throw new InvalidOperationException("NEO4J__PASSWORD")));
-    builder.Services.AddSingleton<IDriver>(driver);
-}
 
-builder.Services.AddScoped<IAsyncSession>(sp => sp.GetRequiredService<IDriver>().AsyncSession());
-builder.Services.AddScoped<DataBase>();
-builder.Services.AddScoped<EventsRepository>();
+    Neo4jConnectionConfig historyConfig;
+    {
+        var section = config.GetRequiredSection("NEO4J:HISTORY");
+        historyConfig = new Neo4jConnectionConfig(
+            section["URI"] ?? throw new InvalidOperationException("NEO4J:HISTORY:URI"),
+            section["USER"] ?? throw new InvalidOperationException("NEO4J:HISTORY:USER"),
+            section["PASSWORD"] ?? throw new InvalidOperationException("NEO4J:HISTORY:PASSWORD")
+        );
+    }
+    Neo4jConnectionConfig migrationsConfig;
+    {
+        var section = config.GetRequiredSection("NEO4J:MIGRATIONS");
+        migrationsConfig = new Neo4jConnectionConfig(
+            section["URI"] ?? throw new InvalidOperationException("NEO4J:MIGRATIONS:URI"),
+            section["USER"] ?? throw new InvalidOperationException("NEO4J:MIGRATIONS:USER"),
+            section["PASSWORD"] ?? throw new InvalidOperationException("NEO4J:MIGRATIONS:PASSWORD")
+        );
+    }
+
+    builder.Services.AddDbThings(historyConfig, migrationsConfig);
+}
 
 builder.Services.AddControllers();
 // Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
@@ -28,7 +41,11 @@ builder.Services.AddSwaggerGen(options =>
     options.SwaggerDoc("v1", new OpenApiInfo { Title = "My API", Version = "v1" });
 });
 
+#endregion AddServices
+
 var app = builder.Build();
+
+#region AppConfiguration
 
 app.UseForwardedHeaders(new ForwardedHeadersOptions
 {
@@ -69,8 +86,10 @@ app.MapControllers();
 
 {
     using var scope = app.Services.CreateScope();
-    var dataBase = scope.ServiceProvider.GetRequiredService<DataBase>();
-    await dataBase.Migrate();
+    var migrations = scope.ServiceProvider.GetRequiredService<MigrationsService>();
+    await migrations.Migrate();
 }
+
+#endregion AppConfiguration
 
 app.Run();

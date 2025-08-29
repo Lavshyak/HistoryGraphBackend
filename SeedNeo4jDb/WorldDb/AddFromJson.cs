@@ -1,27 +1,28 @@
 ﻿using System.Text.Json;
 using DbThings;
+using DbThings.PureEntities;
 
 namespace SeedNeo4jDb.WorldDb;
 
 public record EventsJsonRoot(
-    HistoryEventWithTemporarySlug[] Events,
+    PureHistoryEventWithTemporarySlug[] Events,
     Relations Relations
 );
 
 public record Relations(
-    List<RelationPureContinueWithTemporarySlugs> Continues,
+    List<PureRelationContinueWithTemporarySlugs> Continues,
     List<RelationPureInfluencedWithTemporarySlugs> Influenceds
 );
 
 public class AddFromJson
 {
     private readonly EventsRepository _eventsRepository;
-    private readonly DataBase _dataBase;
+    private readonly MigrationsService _migrationsService;
 
-    public AddFromJson(EventsRepository eventsRepository, DataBase dataBase)
+    public AddFromJson(EventsRepository eventsRepository, MigrationsService migrationsService)
     {
         _eventsRepository = eventsRepository;
-        _dataBase = dataBase;
+        _migrationsService = migrationsService;
     }
 
     public async Task ReadAndAdd()
@@ -30,20 +31,20 @@ public class AddFromJson
         var text = System.IO.File.ReadAllText(jsonFile);
         var root = JsonSerializer.Deserialize<EventsJsonRoot>(text);
 
-        await _dataBase.TryApplyMigration("initial_events", "",
+        await _migrationsService.TryApplyMigrationToHistory("initial_events", "",
             async transaction => { await _eventsRepository.AddEvents(root.Events, transaction); });
 
         var eventsSlugIdDict = root.Events.ToDictionary(e => e.TemporarySlug, e => e.Id);
 
         var relationsToAdd = new EventsRepository.RelationsToAdd()
         {
-            Continues = root.Relations.Continues.Select(c => new RelationPureContinue()
+            Continues = root.Relations.Continues.Select(c => new PureRelationContinue()
             {
                 Id = Guid.Empty,
                 FromId = eventsSlugIdDict[c.FromTemporarySlug],
                 ToId = eventsSlugIdDict[c.ToTemporarySlug]
             }).ToList(),
-            Influenceds = root.Relations.Continues.Select(c => new RelationPureInfluenced()
+            Influenceds = root.Relations.Continues.Select(c => new PureRelationPureInfluenced()
             {
                 Id = Guid.Empty,
                 FromId = eventsSlugIdDict[c.FromTemporarySlug],
@@ -51,7 +52,7 @@ public class AddFromJson
             }).ToList(),
         };
 
-        await _dataBase.TryApplyMigration("initial_relations", "",
+        await _migrationsService.TryApplyMigrationToHistory("initial_relations", "",
             async transaction => { await _eventsRepository.AddRelations(relationsToAdd, transaction); });
     }
 }

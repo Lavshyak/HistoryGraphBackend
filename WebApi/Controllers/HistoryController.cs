@@ -5,12 +5,12 @@ namespace WebApi.Controllers;
 
 [ApiController]
 [Route("[controller]/[action]")]
-public class WeatherForecastController : ControllerBase
+public class HistoryController : ControllerBase
 {
-    private readonly ILogger<WeatherForecastController> _logger;
+    private readonly ILogger<HistoryController> _logger;
     private readonly EventsRepository _eventsRepository;
 
-    public WeatherForecastController(ILogger<WeatherForecastController> logger, EventsRepository eventsRepository)
+    public HistoryController(ILogger<HistoryController> logger, EventsRepository eventsRepository)
     {
         _logger = logger;
         _eventsRepository = eventsRepository;

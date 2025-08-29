@@ -1,4 +1,5 @@
-﻿using Neo4j.Driver;
+﻿using DbThings.PureEntities;
+using Neo4j.Driver;
 
 namespace DbThings;
 
@@ -10,6 +11,8 @@ public class EventsRepository
     {
         _session = session;
     }
+    
+    public async Task<IAsyncTransaction> BeginTransactionAsync() => await _session.BeginTransactionAsync();
 
     public async Task GetAll()
     {
@@ -22,7 +25,7 @@ public class EventsRepository
         var list = await result.ToListAsync();
     }
     
-    public async Task<bool> AddEvents(HistoryEvent[] historyEvents, IAsyncQueryRunner queryRunner)
+    public async Task<bool> AddEvents(PureHistoryEvent[] historyEvents, IAsyncQueryRunner queryRunner)
     {
         foreach (var historyEvent in historyEvents)
         {
@@ -65,19 +68,19 @@ public class EventsRepository
         return true;
     }
     
-    public async Task<bool> AddEvents(HistoryEvent[] historyEvents)
+    public async Task<bool> AddEvents(PureHistoryEvent[] historyEvents)
     {
         return await AddEvents(historyEvents, _session);
     }
 
     public class RelationsToAdd
     {
-        public List<RelationPureContinue> Continues { get; set; } = [];
-        public List<RelationPureInfluenced> Influenceds { get; set; } = [];
-        public List<RelationPureReferences> Referencess { get; set; } = [];
-        public List<RelationPureRelates> Relatess { get; set; } = [];
+        public List<PureRelationContinue> Continues { get; set; } = [];
+        public List<PureRelationPureInfluenced> Influenceds { get; set; } = [];
+        public List<PureRelationPureReferences> Referencess { get; set; } = [];
+        public List<PureRelationPureRelates> Relatess { get; set; } = [];
 
-        public List<RelationPureRelatesTheme> ThemeRelatess { get; set; } = [];
+        public List<PureRelationPureRelatesTheme> ThemeRelatess { get; set; } = [];
     }
 
     public async Task<bool> AddRelations(RelationsToAdd relationsToAdd)
@@ -87,7 +90,7 @@ public class EventsRepository
     public async Task<bool> AddRelations(RelationsToAdd relationsToAdd, IAsyncQueryRunner queryRunner)
     {
         async Task<IResultCursor?> HandleRelations(
-            IReadOnlyList<IRelationWithIds> relations,
+            IReadOnlyList<IPureRelationWithIds> relations,
             string relationLabel,
             string fromLabel,
             string toLabel)
@@ -123,33 +126,33 @@ public class EventsRepository
 
         var r1 = await HandleRelations(
             relationsToAdd.Continues,
-            RelationPureContinue.Label,
-            RelationPureContinue.FromLabel,
-            RelationPureContinue.ToLabel);
+            PureRelationContinue.Label,
+            PureRelationContinue.FromLabel,
+            PureRelationContinue.ToLabel);
 
         var r2 = await HandleRelations(
             relationsToAdd.Influenceds,
-            RelationPureInfluenced.Label,
-            RelationPureInfluenced.FromLabel,
-            RelationPureInfluenced.ToLabel);
+            PureRelationPureInfluenced.Label,
+            PureRelationPureInfluenced.FromLabel,
+            PureRelationPureInfluenced.ToLabel);
 
         var r3 = await HandleRelations(
             relationsToAdd.Referencess,
-            RelationPureReferences.Label,
-            RelationPureReferences.FromLabel,
-            RelationPureReferences.ToLabel);
+            PureRelationPureReferences.Label,
+            PureRelationPureReferences.FromLabel,
+            PureRelationPureReferences.ToLabel);
 
         var r4 = await HandleRelations(
             relationsToAdd.Relatess,
-            RelationPureRelates.Label,
-            RelationPureRelates.FromLabel,
-            RelationPureRelates.ToLabel);
+            PureRelationPureRelates.Label,
+            PureRelationPureRelates.FromLabel,
+            PureRelationPureRelates.ToLabel);
 
         var r5 = await HandleRelations(
             relationsToAdd.ThemeRelatess,
-            RelationPureRelatesTheme.Label,
-            RelationPureRelatesTheme.FromLabel,
-            RelationPureRelatesTheme.ToLabel);
+            PureRelationPureRelatesTheme.Label,
+            PureRelationPureRelatesTheme.FromLabel,
+            PureRelationPureRelatesTheme.ToLabel);
         return true;
     }
 }
