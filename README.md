@@ -1,1 +1,1 @@
-vroted: https://github.com/Lavshyak/history-graph-frontend
+vrotend: https://github.com/Lavshyak/history-graph-frontend
