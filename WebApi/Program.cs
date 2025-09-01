@@ -1,3 +1,4 @@
+using System.Text.Json;
 using DbThings;
 using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.OpenApi.Models;
@@ -5,6 +6,11 @@ using Microsoft.OpenApi.Models;
 Console.WriteLine("Program.cs start");
 
 var builder = WebApplication.CreateBuilder(args);
+
+T GetRequiredConfigurationValue<T>(string key)
+{
+    return builder.Configuration.GetValue<T?>(key) ?? throw new InvalidOperationException();
+}
 
 #region AddServices
 
@@ -39,6 +45,16 @@ builder.Services.AddOpenApi();
 builder.Services.AddSwaggerGen(options =>
 {
     options.SwaggerDoc("v1", new OpenApiInfo { Title = "My API", Version = "v1" });
+});
+
+builder.Services.AddCors(options =>
+{
+    options.AddDefaultPolicy(policy =>
+    {
+        var originsJson = GetRequiredConfigurationValue<string>("Cors:DefaultPolicy:OriginsJsonArray");
+        var origins = JsonSerializer.Deserialize<string[]>(originsJson) ?? throw new InvalidOperationException();
+        policy.WithOrigins(origins);
+    });
 });
 
 #endregion AddServices
@@ -78,7 +94,9 @@ if (app.Environment.IsDevelopment())
     app.UseSwaggerUI(options => { options.SwaggerEndpoint("v1/swagger.json", "My API V1"); });
 }
 
-app.UseHttpsRedirection();
+//app.UseHttpsRedirection();
+
+app.UseCors();
 
 app.UseAuthorization();
 

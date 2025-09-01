@@ -53,6 +53,7 @@
       - NEO4J__MIGRATIONS__USER=neo4j
       - NEO4J__MIGRATIONS__PASSWORD=w4gfe57GDF325hfw
       - ASPNETCORE_URLS=http://*:80
+      - Cors__DefaultPolicy__OriginsJsonArray=["http://localhost:5173"]
     #depends_on:
     #  - neo4j
     #networks:
