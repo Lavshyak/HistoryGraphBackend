@@ -19,7 +19,7 @@ public class MigrationsService
         _dataBase = dataBase;
         _sessionMigrations = sessionMigrations;
     }
-    
+
     public record Migration(string Id, string Description)
     {
         public const string Label = "MIGRATION";
@@ -41,80 +41,103 @@ public class MigrationsService
 
         return exists;
     }
-    
+
     public async Task TryApplyMigrationToHistory(string id, string description, Func<IAsyncQueryRunner, Task> func)
     {
         var isApplied = await GetIsMigrationApplied(id);
         if (!isApplied)
         {
-            await using var transaction1 = await _dataBase.BeginTransactionAsync();
             try
             {
-                await func(transaction1);
-                await transaction1.CommitAsync();
+                await using var transaction1 = await _dataBase.BeginTransactionAsync();
+                await BeginMigration(_sessionMigrations, new Migration(id, description));
+                try
+                {
+                    await func(transaction1);
+                    await transaction1.CommitAsync();
+                    await FinishMigration(_sessionMigrations, id);
+                }
+                catch (Exception ex)
+                {
+                    await transaction1.RollbackAsync();
+                    throw;
+                }
             }
-            catch (Exception ex)
+            catch
             {
-                await transaction1.RollbackAsync();
-                throw;
-            }
-            await using var transaction2 = await _sessionMigrations.BeginTransactionAsync();
-            try
-            {
-                await AddMigration(transaction2, new Migration(id, description));
-                await transaction2.CommitAsync();
-            }
-            catch (Exception ex)
-            {
-                await transaction2.RollbackAsync();
-                await transaction1.RollbackAsync();
-                throw;
-            }
-        }
-    }
-    
-    public async Task TryApplyMigrationToMigrations(string id, string description, Func<IAsyncQueryRunner, Task> func)
-    {
-        var isApplied = await GetIsMigrationApplied(id);
-        if (!isApplied)
-        {
-            await using var transaction1 = await _sessionMigrations.BeginTransactionAsync();
-            try
-            {
-                await func(transaction1);
-                await transaction1.CommitAsync();
-            }
-            catch (Exception ex)
-            {
-                await transaction1.RollbackAsync();
-                throw;
-            }
-            await using var transaction2 = await _sessionMigrations.BeginTransactionAsync();
-            try
-            {
-                await AddMigration(transaction2, new Migration(id, description));
-                await transaction2.CommitAsync();
-            }
-            catch (Exception ex)
-            {
-                await transaction2.RollbackAsync();
-                await transaction1.RollbackAsync();
+                await EnsureMigrationDeleted(_sessionMigrations, id);
                 throw;
             }
         }
     }
 
-    public async Task AddMigration(IAsyncQueryRunner transaction, Migration migration)
+    public async Task TryApplyMigrationToMigrations(string id, string description, Func<IAsyncQueryRunner, Task> func)
+    {
+        var isApplied = await GetIsMigrationApplied(id);
+        if (!isApplied)
+        {
+            try
+            {
+                await using var transaction1 = await _sessionMigrations.BeginTransactionAsync();
+                await BeginMigration(_sessionMigrations, new Migration(id, description));
+                try
+                {
+                    await func(transaction1);
+                    await transaction1.CommitAsync();
+                    await FinishMigration(_sessionMigrations, id);
+                }
+                catch (Exception ex)
+                {
+                    await transaction1.RollbackAsync();
+                    throw;
+                }
+            }
+            catch
+            {
+                await EnsureMigrationDeleted(_sessionMigrations, id);
+                throw;
+            }
+        }
+    }
+
+    public async Task BeginMigration(IAsyncQueryRunner transaction, Migration migration)
     {
         var cursor = await transaction.RunAsync($@"
              MERGE (m:{Migration.Label} {{id: $id}})
              ON CREATE SET
                 m.description = $description
+                m.finished = false
              RETURN count(m) AS createdCount
         ", new
         {
             id = migration.Id,
             description = migration.Description,
+        });
+
+        var list = await cursor.ToListAsync();
+    }
+
+    public async Task FinishMigration(IAsyncQueryRunner transaction, string migrationId)
+    {
+        var cursor = await transaction.RunAsync($@"
+             MATCH (m:{Migration.Label} {{id: $id}})
+             SET m.finished = true
+        ", new
+        {
+            id = migrationId,
+        });
+
+        var list = await cursor.ToListAsync();
+    }
+
+    public async Task EnsureMigrationDeleted(IAsyncQueryRunner transaction, string migrationId)
+    {
+        var cursor = await transaction.RunAsync($@"
+             MATCH (m:{Migration.Label} {{id: $id}})
+             DETACH DELETE m
+        ", new
+        {
+            id = migrationId,
         });
 
         var list = await cursor.ToListAsync();
