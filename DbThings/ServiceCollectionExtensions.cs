@@ -14,7 +14,8 @@ public static class ServiceCollectionExtensions
         // history db
         {
             var config = historyConfig;
-            var driver = GraphDatabase.Driver(config.Uri, AuthTokens.Basic(config.Username, config.Password));
+            var driver = GraphDatabase.Driver(config.Uri, AuthTokens.Basic(config.Username, config.Password),
+                b => b.WithConnectionTimeout(TimeSpan.FromSeconds(60)));
             services.AddKeyedSingleton<IDriver>(ServiceKeys.Neo4jHistoryDriver, driver);
             services.AddKeyedScoped<IAsyncSession>(ServiceKeys.Neo4jHistorySession, (_, _) => driver.AsyncSession());
 
@@ -26,7 +27,8 @@ public static class ServiceCollectionExtensions
         // migrations db
         {
             var config = migrationsConfig;
-            var driver = GraphDatabase.Driver(config.Uri, AuthTokens.Basic(config.Username, config.Password));
+            var driver = GraphDatabase.Driver(config.Uri, AuthTokens.Basic(config.Username, config.Password),
+                b => b.WithConnectionTimeout(TimeSpan.FromSeconds(60)));
             services.AddKeyedSingleton<IDriver>(ServiceKeys.Neo4jMigrationsDriver, driver);
             services.AddKeyedScoped<IAsyncSession>(ServiceKeys.Neo4jMigrationsSession, (_, _) => driver.AsyncSession());
         }
